@@ -206,6 +206,70 @@ def tuning_xgb_2(X_train, y_train):
     
     return xgb
 
+def test_given_model(df_test, reg, FEATURES, model='xgb'):
+    TARGET = 'demand'
+    TARGET_TRAIN = 'demand_target'
+    X_test = df_test[FEATURES]
+    y_test = df_test[TARGET]
+    
+    overall_zero_scores = pd.DataFrame()
+    non_zero_scores = pd.DataFrame()
+    zero_scores = pd.DataFrame()
+    preds_list = []
+
+    y_pred = target_scaler.inverse_transform([reg.predict(X_test)])
+    preds_out = X_test.copy()
+    preds_out['actual_demand'] = y_test
+    preds_out['pred'] = y_pred[0]
+    
+    if model != 'rf':
+        preds_list.append(preds_out)
+
+    non_zero = preds_out.query('actual_demand != 0')
+    zeros = preds_out.query('actual_demand == 0')
+    
+    mse_score = mean_squared_error(y_test, y_pred[0])
+    rmse_score = np.sqrt(mse_score)
+    mae_score = mean_absolute_error(y_test, y_pred[0])
+    mape_score = mean_absolute_percentage_error(y_test+1, y_pred[0]+1)
+    overall_zero_scores = pd.concat([overall_zero_scores, pd.DataFrame({'mse': [mse_score], 'rmse': [rmse_score], 'mae': [mae_score], 'mape': [mape_score]})])
+    
+    mse_score = mean_squared_error(non_zero['actual_demand'], non_zero['pred'])
+    rmse_score = np.sqrt(mse_score)
+    mae_score = mean_absolute_error(non_zero['actual_demand'], non_zero['pred'])
+    mape_score = mean_absolute_percentage_error(non_zero['actual_demand']+1, non_zero['pred']+1)
+    non_zero_scores = pd.concat([non_zero_scores, pd.DataFrame({'mse': [mse_score], 'rmse': [rmse_score], 'mae': [mae_score], 'mape': [mape_score]})])
+    
+    
+    mse_score = mean_squared_error(zeros['actual_demand'], zeros['pred'])
+    rmse_score = np.sqrt(mse_score)
+    mae_score = mean_absolute_error(zeros['actual_demand'], zeros['pred'])
+    mape_score = mean_absolute_percentage_error(zeros['actual_demand']+1, zeros['pred']+1)
+    zero_scores = pd.concat([zero_scores, pd.DataFrame({'mse': [mse_score], 'rmse': [rmse_score], 'mae': [mae_score], 'mape': [mape_score]})])
+
+    print("overall")
+    print("MSE:", overall_zero_scores['mse'].mean())
+    print("RMSE:", overall_zero_scores['rmse'].mean())
+    print("MAE:", overall_zero_scores['mae'].mean())
+    print("MAPE:", overall_zero_scores['mape'].mean())
+    
+    print()
+    print("Non-zero")
+    print("MSE:", non_zero_scores['mse'].mean())
+    print("RMSE:", non_zero_scores['rmse'].mean())
+    print("MAE:", non_zero_scores['mae'].mean())
+    print("MAPE:", non_zero_scores['mape'].mean())
+    
+    print()
+    print("#####")
+    print("Zeros")
+    print("MSE:", zero_scores['mse'].mean())
+    print("RMSE:", zero_scores['rmse'].mean())
+    print("MAE:", zero_scores['mae'].mean())
+    print("MAPE:", zero_scores['mape'].mean())
+    
+    return preds_out
+
 def train_model(df_train, df_test, FEATURES, model='xgb', epochs=50, batch_size=32, tuning=False):
     TARGET = 'demand'
     TARGET_TRAIN = 'demand_target'
